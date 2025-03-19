@@ -1,12 +1,16 @@
 package com.evenost.grib_api.controller;
 
-import com.evenost.grib_api.model.GribResponse;
-import com.evenost.grib_api.service.GribService;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.evenost.grib_api.model.GribResponse;
+import com.evenost.grib_api.service.GribService;
 
 @RestController
 @RequestMapping("/api/weather")
@@ -38,4 +42,11 @@ public class GribController {
     public GribResponse getPrecipitationData(@PathVariable String area) throws Exception {
         return gribService.getPrecipitationData(area);
     }
+
+    @GetMapping("/health")
+    public Map<String, String> healthCheck() {
+        Map<String, String> status = new HashMap<>();
+        status.put("status", "UP");
+        return status;
+}
 }
