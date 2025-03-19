@@ -4,6 +4,9 @@ services:
     env: docker
     plan: free
     healthCheckPath: /api/weather/health
+    buildCommand: echo "Docker build handles compilation"
+    dockerfilePath: ./Dockerfile
+    dockerCommand: java -Xmx512m -jar app.jar
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod

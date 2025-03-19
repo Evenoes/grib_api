@@ -4,7 +4,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -16,15 +20,24 @@ import ucar.nc2.NetcdfFile;
 
 @Service
 public class GribService {
+    private static final Logger logger = Logger.getLogger(GribService.class.getName());
     private final RestTemplate restTemplate = new RestTemplate();
     
     public GribResponse getWaveData(String area) throws Exception {
-        // 1. Download GRIB file
-        String url = "https://api.met.no/weatherapi/gribfiles/1.1/waves?area=" + area;
-        File gribFile = downloadGribFile(url, "waves_" + area + ".grb");
-        
-        // 2. Parse wave height data
-        return parseWaveHeightData(gribFile);
+        try {
+            // 1. Download GRIB file
+            String url = "https://api.met.no/weatherapi/gribfiles/1.1/waves?area=" + area;
+            logger.info("Downloading wave data from: " + url);
+            File gribFile = downloadGribFile(url, "waves_" + area + ".grb");
+            logger.info("File downloaded to: " + gribFile.getAbsolutePath() + ", size: " + gribFile.length() + " bytes");
+            
+            // 2. Parse wave height data
+            return parseWaveHeightData(gribFile);
+        } catch (Exception e) {
+            logger.severe("Error getting wave data: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
     
     public GribResponse[] getWindData(String area) throws Exception {
@@ -57,18 +70,39 @@ public class GribService {
     }
     
     private File downloadGribFile(String url, String filename) throws Exception {
-        // Create a temporary file
-        File tempFile = File.createTempFile("grib", ".grb");
-        
-        // Download the file content
-        byte[] gribBytes = restTemplate.getForObject(url, byte[].class);
-        
-        // Write to file
-        try (FileOutputStream fos = new FileOutputStream(tempFile)) {
-            fos.write(gribBytes);
+        try {
+            // Create a temporary file
+            File tempFile = File.createTempFile("grib", ".grb");
+            logger.info("Created temp file: " + tempFile.getAbsolutePath());
+            
+            // Set headers for API request
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", "GribAPI/1.0 (https://github.com/yourusername/grib-api)");
+            
+            // Download the file content with headers
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+            byte[] gribBytes = restTemplate.exchange(
+                url, 
+                HttpMethod.GET, 
+                entity, 
+                byte[].class
+            ).getBody();
+            
+            logger.info("Downloaded " + (gribBytes != null ? gribBytes.length : 0) + " bytes");
+            
+            // Write to file
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                if (gribBytes != null) {
+                    fos.write(gribBytes);
+                }
+            }
+            
+            return tempFile;
+        } catch (Exception e) {
+            logger.severe("Error downloading GRIB file: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
         }
-        
-        return tempFile;
     }
     
     private GribResponse parseWaveHeightData(File file) throws Exception {
