@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: grib-api
+    env: docker
+    plan: free
+    healthCheckPath: /api/weather/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod

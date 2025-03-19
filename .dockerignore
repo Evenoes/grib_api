@@ -1,0 +1,5 @@
+.gradle
+.git
+.idea
+build/tmp
+build/test-results
