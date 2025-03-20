@@ -76,9 +76,11 @@ public class GribService {
 
     // Precipitation data
     public GribResponse getPrecipitationData(String area) throws Exception {
+        // Remove the content parameter - it's not supported for precipitation endpoint
         String url = "https://api.met.no/weatherapi/gribfiles/1.1/precipitation?area=" + area;
+        logger.info("Downloading precipitation data from: " + url);
         File gribFile = downloadGribFile(url, "precipitation_" + area + ".grb");
-
+        
         return parsePrecipitationData(gribFile);
     }
 
