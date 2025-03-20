@@ -105,71 +105,138 @@ public class GribService {
         }
     }
     
-    private GribResponse parseWaveHeightData(File file) throws Exception {
-        logger.info("Starting to parse wave height data from: " + file.getAbsolutePath());
-        List<GribDataPoint> dataPoints = new ArrayList<>();
-        double minValue = Double.MAX_VALUE;
-        double maxValue = Double.MIN_VALUE;
+    // Replace the parseWaveHeightData method with this implementation
 
-        try (NetcdfFile ncFile = NetcdfFile.open(file.getPath())) {
-            logger.info("NetCDF file opened successfully, looking for variables");
-            
-            // Log all variables to help debug
-            ncFile.getVariables().forEach(v -> logger.info("Found variable: " + v.getFullName() + 
-                                                         " with type: " + v.getDataType() + 
-                                                         " and shape: " + v.getShape()));
-            
-            // Try to find the wave height variable - try different possible names
-            String[] possibleVarNames = {"SHWW", "significant_wave_height", "swh", "VHM0"};
-            ucar.nc2.Variable waveVar = null;
-            
-            for (String varName : possibleVarNames) {
-                waveVar = ncFile.findVariable(varName);
-                if (waveVar != null) {
-                    logger.info("Found wave height variable: " + varName);
-                    break;
-                }
+private GribResponse parseWaveHeightData(File file) throws Exception {
+    logger.info("Starting to parse wave height data from: " + file.getAbsolutePath());
+    List<GribDataPoint> dataPoints = new ArrayList<>();
+    double minValue = Double.MAX_VALUE;
+    double maxValue = Double.MIN_VALUE;
+
+    try (NetcdfFile ncFile = NetcdfFile.open(file.getPath())) {
+        logger.info("NetCDF file opened successfully, looking for variables");
+        
+        // Log all variables
+        ncFile.getVariables().forEach(v -> logger.info("Found variable: " + v.getFullName() + 
+                                                     " with type: " + v.getDataType() + 
+                                                     " and shape: " + v.getShape()));
+        
+        // Add the full name we found in the logs
+        String[] possibleVarNames = {
+            "SHWW", 
+            "significant_wave_height", 
+            "swh", 
+            "VHM0",
+            "Significant_height_of_combined_wind_waves_and_swell_height_above_ground"
+        };
+        
+        ucar.nc2.Variable waveVar = null;
+        
+        for (String varName : possibleVarNames) {
+            waveVar = ncFile.findVariable(varName);
+            if (waveVar != null) {
+                logger.info("Found wave height variable: " + varName);
+                break;
             }
-            
-            if (waveVar == null) {
-                logger.severe("Could not find wave height variable in the GRIB file");
-                return new GribResponse(new ArrayList<>(), 0, 0, "WAVE_HEIGHT");
-            }
-            
-            // Get dimensions
-            int[] shape = waveVar.getShape();
-            logger.info("Wave variable shape: " + java.util.Arrays.toString(shape));
-            
-            // Continue with your existing parsing code but with more logging
-            ucar.ma2.Array waveData = waveVar.read();
-            logger.info("Wave data array rank: " + waveData.getRank());
-            
-            // Rest of your parsing code...
-            
-            // For debugging, add at least a few data points
-            // This helps ensure the method is working correctly
-            if (dataPoints.isEmpty() && waveData.getSize() > 0) {
-                logger.warning("No data points extracted but array has data. Adding sample point for debugging.");
-                try {
-                    Index index = waveData.getIndex();
-                    index.set(0, 0); // Get first point as sample
-                    double sampleValue = waveData.getDouble(index);
-                    dataPoints.add(new GribDataPoint(0.0, 0.0, sampleValue, System.currentTimeMillis()));
-                    minValue = maxValue = sampleValue;
-                    logger.info("Added sample point with value: " + sampleValue);
-                } catch (Exception e) {
-                    logger.severe("Error creating sample point: " + e.getMessage());
-                }
-            }
-        } catch (Exception e) {
-            logger.severe("Error parsing wave data: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
         }
-
-        logger.info("Parsed " + dataPoints.size() + " data points. Min value: " + minValue + ", Max value: " + maxValue);
-        return new GribResponse(dataPoints, minValue, maxValue, "WAVE_HEIGHT");
+        
+        if (waveVar == null) {
+            logger.severe("Could not find wave height variable in the GRIB file");
+            return new GribResponse(new ArrayList<>(), 0, 0, "WAVE_HEIGHT");
+        }
+        
+        // Now extract lat/lon variables to create proper data points
+        ucar.nc2.Variable latVar = ncFile.findVariable("lat");
+        ucar.nc2.Variable lonVar = ncFile.findVariable("lon");
+        
+        if (latVar == null || lonVar == null) {
+            logger.severe("Could not find lat/lon variables in the GRIB file");
+            return new GribResponse(new ArrayList<>(), 0, 0, "WAVE_HEIGHT");
+        }
+        
+        // Read coordinate data - Fixed typo here
+        float[] latitudes = (float[]) latVar.read().get1DJavaArray(float.class);
+        float[] longitudes = (float[]) lonVar.read().get1DJavaArray(float.class);
+        
+        // Get dimensions and wave data
+        int[] shape = waveVar.getShape();
+        logger.info("Wave variable shape: " + java.util.Arrays.toString(shape));
+        
+        ucar.ma2.Array waveData = waveVar.read();
+        logger.info("Wave data array rank: " + waveData.getRank());
+        
+        // Process the data - this will depend on the structure
+        // For a typical lat/lon grid:
+        if (waveData.getRank() == 2) {  // 2D: [lat, lon]
+            for (int latIdx = 0; latIdx < latitudes.length; latIdx++) {
+                for (int lonIdx = 0; lonIdx < longitudes.length; lonIdx++) {
+                    Index index = waveData.getIndex();
+                    index.set(latIdx, lonIdx);
+                    double value = waveData.getDouble(index);
+                    
+                    // Only add points with valid values
+                    if (!Double.isNaN(value)) {
+                        dataPoints.add(new GribDataPoint(
+                            latitudes[latIdx],
+                            longitudes[lonIdx],
+                            value,
+                            System.currentTimeMillis()
+                        ));
+                        
+                        minValue = Math.min(minValue, value);
+                        maxValue = Math.max(maxValue, value);
+                    }
+                }
+            }
+        } else if (waveData.getRank() == 3) {  // 3D: [time, lat, lon] - take first time step
+            for (int latIdx = 0; latIdx < latitudes.length; latIdx++) {
+                for (int lonIdx = 0; lonIdx < longitudes.length; lonIdx++) {
+                    Index index = waveData.getIndex();
+                    index.set(0, latIdx, lonIdx);  // First time step
+                    double value = waveData.getDouble(index);
+                    
+                    // Only add points with valid values
+                    if (!Double.isNaN(value)) {
+                        dataPoints.add(new GribDataPoint(
+                            latitudes[latIdx],
+                            longitudes[lonIdx],
+                            value,
+                            System.currentTimeMillis()
+                        ));
+                        
+                        minValue = Math.min(minValue, value);
+                        maxValue = Math.max(maxValue, value);
+                    }
+                }
+            }
+        }
+        
+        // Optionally sample data to reduce size
+        if (dataPoints.size() > 1000) {
+            // Sample points to reduce data size
+            List<GribDataPoint> sampledPoints = new ArrayList<>();
+            int step = dataPoints.size() / 1000;
+            for (int i = 0; i < dataPoints.size(); i += step) {
+                sampledPoints.add(dataPoints.get(i));
+            }
+            dataPoints = sampledPoints;
+            logger.info("Sampled down to " + dataPoints.size() + " data points");
+        }
+    } catch (Exception e) {
+        logger.severe("Error parsing wave data: " + e.getMessage());
+        e.printStackTrace();
+        throw e;
     }
+
+    logger.info("Parsed " + dataPoints.size() + " data points. Min value: " + minValue + ", Max value: " + maxValue);
+    
+    // Handle case where no valid data was found
+    if (dataPoints.isEmpty()) {
+        return new GribResponse(dataPoints, 0, 0, "WAVE_HEIGHT");
+    }
+    
+    return new GribResponse(dataPoints, minValue, maxValue, "WAVE_HEIGHT");
+}
     
     // Implement similar methods for other data types
     private GribResponse parseWindSpeedData(File file) throws Exception {
