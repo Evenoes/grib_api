@@ -4,9 +4,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -17,10 +17,9 @@ import org.springframework.web.client.RestTemplate;
 import com.evenost.grib_api.model.GribDataPoint;
 import com.evenost.grib_api.model.GribResponse;
 
+import jakarta.annotation.PreDestroy;
 import ucar.ma2.Index;
 import ucar.nc2.NetcdfFile;
-
-import jakarta.annotation.PreDestroy;
 
 @Service
 public class GribService {
@@ -47,9 +46,9 @@ public class GribService {
         }
     }
 
-    // Wind data - keep this with the correct content parameter
+    // Wind data - remove content parameter as it's not supported
     public GribResponse[] getWindData(String area) throws Exception {
-        String url = "https://api.met.no/weatherapi/gribfiles/1.1/wind?area=" + area + "&content=10u,10v";
+        String url = "https://api.met.no/weatherapi/gribfiles/1.1/wind?area=" + area;
         logger.info("Downloading wind data from: " + url);
         File gribFile = downloadGribFile(url, "wind_" + area + ".grb");
 
@@ -73,20 +72,20 @@ public class GribService {
         return responses;
     }
 
-    // Precipitation data
+    // Precipitation data - add required content parameter
     public GribResponse getPrecipitationData(String area) throws Exception {
-        // Remove the content parameter - it's not supported for precipitation endpoint
-        String url = "https://api.met.no/weatherapi/gribfiles/1.1/precipitation?area=" + area;
+        // Add content parameter which is required by the API
+        String url = "https://api.met.no/weatherapi/gribfiles/1.1/precipitation?area=" + area + "&content=weather";
         logger.info("Downloading precipitation data from: " + url);
         File gribFile = downloadGribFile(url, "precipitation_" + area + ".grb");
 
         return parsePrecipitationData(gribFile);
     }
 
-    // General weather data (combines wind and precipitation)
+    // General weather data - fix URL pattern
     public GribResponse[] getWeatherData(String area) throws Exception {
-        // Use the weather endpoint which doesn't need content parameters
-        String url = "https://api.met.no/weatherapi/gribfiles/1.1/weather?area=" + area;
+        // Use the weather endpoint with content parameter
+        String url = "https://api.met.no/weatherapi/gribfiles/1.1/weather?area=" + area + "&content=weather";
         logger.info("Downloading weather data from: " + url);
         File gribFile = downloadGribFile(url, "weather_" + area + ".grb");
 
