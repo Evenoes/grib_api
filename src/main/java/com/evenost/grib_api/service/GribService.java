@@ -1052,9 +1052,10 @@ public class GribService {
                     dataPoints.add(new GribDataPoint(lat, lon, 0.0));
                 }
             }
-            return new GribResponse(dataPoints, 0, 0,
-                    method.contains("Direction") ? "CURRENT_DIRECTION" : "CURRENT_SPEED");
+            return new GribResponse(dataPoints, 0, 0, "CURRENT_SPEED");
         }
+
+        return new GribResponse(dataPoints, minValue, maxValue, "CURRENT_SPEED");
     }
 
     private GribResponse parseCurrentDirectionData(File file) throws Exception {
@@ -1341,9 +1342,10 @@ public class GribService {
                     dataPoints.add(new GribDataPoint(lat, lon, 0.0));
                 }
             }
-            return new GribResponse(dataPoints, 0, 0,
-                    method.contains("Direction") ? "CURRENT_DIRECTION" : "CURRENT_SPEED");
+            return new GribResponse(dataPoints, 0, 0, "CURRENT_DIRECTION");
         }
+
+        return new GribResponse(dataPoints, minValue, maxValue, "CURRENT_DIRECTION");
     }
 
     private GribResponse parsePrecipitationData(File file) throws Exception {
