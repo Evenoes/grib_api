@@ -47,10 +47,8 @@ public class GribService {
         }
     }
 
-    // Wind data
+    // Wind data - keep this with the correct content parameter
     public GribResponse[] getWindData(String area) throws Exception {
-        // Add the content parameter with the required values (typically
-        // 'wind_u_direction,wind_v_direction' or similar)
         String url = "https://api.met.no/weatherapi/gribfiles/1.1/wind?area=" + area + "&content=10u,10v";
         logger.info("Downloading wind data from: " + url);
         File gribFile = downloadGribFile(url, "wind_" + area + ".grb");
@@ -62,9 +60,10 @@ public class GribService {
         return responses;
     }
 
-    // Current data
+    // Current data - keep without content parameter
     public GribResponse[] getCurrentData(String area) throws Exception {
-        String url = "https://api.met.no/weatherapi/gribfiles/1.1/current?area=" + area + "&content=uogrd,vogrd";
+        String url = "https://api.met.no/weatherapi/gribfiles/1.1/current?area=" + area;
+        logger.info("Downloading current data from: " + url);
         File gribFile = downloadGribFile(url, "current_" + area + ".grb");
 
         // For current, we return both speed and direction
@@ -80,8 +79,23 @@ public class GribService {
         String url = "https://api.met.no/weatherapi/gribfiles/1.1/precipitation?area=" + area;
         logger.info("Downloading precipitation data from: " + url);
         File gribFile = downloadGribFile(url, "precipitation_" + area + ".grb");
-        
+
         return parsePrecipitationData(gribFile);
+    }
+
+    // General weather data (combines wind and precipitation)
+    public GribResponse[] getWeatherData(String area) throws Exception {
+        // Use the weather endpoint which doesn't need content parameters
+        String url = "https://api.met.no/weatherapi/gribfiles/1.1/weather?area=" + area;
+        logger.info("Downloading weather data from: " + url);
+        File gribFile = downloadGribFile(url, "weather_" + area + ".grb");
+        
+        // For weather, we return wind and precipitation data
+        GribResponse[] responses = new GribResponse[3];
+        responses[0] = parseWindSpeedData(gribFile);
+        responses[1] = parseWindDirectionData(gribFile);
+        responses[2] = parsePrecipitationData(gribFile);
+        return responses;
     }
 
     private File downloadGribFile(String url, String filename) throws Exception {
