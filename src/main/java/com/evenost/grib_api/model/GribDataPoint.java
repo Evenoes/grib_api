@@ -6,7 +6,7 @@ public class GribDataPoint {
     private double value;
     private long timestamp;
     
-    // Constructor with 3 parameters (for compatibility)
+    // Constructor with 3 parameters excluding timestamp
     public GribDataPoint(double latitude, double longitude, double value) {
         this.latitude = latitude;
         this.longitude = longitude;
