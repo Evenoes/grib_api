@@ -46,42 +46,62 @@ public class GribService {
         }
     }
 
-    // Wind data - add required content parameter
+    // Wind data - remove content parameter since it's not allowed
     public GribResponse[] getWindData(String area) throws Exception {
-        String url = "https://api.met.no/weatherapi/gribfiles/1.1/wind?area=" + area + "&content=wind";
+        String url = "https://api.met.no/weatherapi/gribfiles/1.1/wind?area=" + area;
         logger.info("Downloading wind data from: " + url);
-        File gribFile = downloadGribFile(url, "wind_" + area + ".grb");
-
-        // For wind, we return both speed and direction
-        GribResponse[] responses = new GribResponse[2];
-        responses[0] = parseWindSpeedData(gribFile);
-        responses[1] = parseWindDirectionData(gribFile);
-        return responses;
+        
+        try {
+            File gribFile = downloadGribFile(url, "wind_" + area + ".grb");
+            
+            // For wind, we return both speed and direction
+            GribResponse[] responses = new GribResponse[2];
+            responses[0] = parseWindSpeedData(gribFile);
+            responses[1] = parseWindDirectionData(gribFile);
+            return responses;
+        } catch (Exception e) {
+            logger.warning("Error getting wind data: " + e.getMessage());
+            // Return basic placeholders
+            GribResponse[] responses = new GribResponse[2];
+            responses[0] = createPlaceholderResponse("WIND_SPEED");
+            responses[1] = createPlaceholderResponse("WIND_DIRECTION");
+            return responses;
+        }
     }
 
-    // Current data - add content parameter and improve error handling
+    // Current data - remove content parameter since it's not supported
     public GribResponse[] getCurrentData(String area) throws Exception {
-        String url = "https://api.met.no/weatherapi/gribfiles/1.1/current?area=" + area + "&content=current";
+        String url = "https://api.met.no/weatherapi/gribfiles/1.1/current?area=" + area;
         logger.info("Downloading current data from: " + url);
-        File gribFile = downloadGribFile(url, "current_" + area + ".grb");
-
-        // For current, we return both speed and direction
-        GribResponse[] responses = new GribResponse[2];
+        
         try {
-            responses[0] = parseCurrentSpeedData(gribFile);
+            File gribFile = downloadGribFile(url, "current_" + area + ".grb");
+            
+            // For current, we return both speed and direction
+            GribResponse[] responses = new GribResponse[2];
+            try {
+                responses[0] = parseCurrentSpeedData(gribFile);
+            } catch (Exception e) {
+                logger.warning("Error parsing current speed, using placeholder: " + e.getMessage());
+                responses[0] = createPlaceholderResponse("CURRENT_SPEED");
+            }
+            
+            try {
+                responses[1] = parseCurrentDirectionData(gribFile);
+            } catch (Exception e) {
+                logger.warning("Error parsing current direction, using placeholder: " + e.getMessage());
+                responses[1] = createPlaceholderResponse("CURRENT_DIRECTION");
+            }
+            
+            return responses;
         } catch (Exception e) {
-            logger.warning("Error parsing current speed, using placeholder: " + e.getMessage());
+            logger.warning("Error getting current data: " + e.getMessage());
+            // Return basic placeholders
+            GribResponse[] responses = new GribResponse[2];
             responses[0] = createPlaceholderResponse("CURRENT_SPEED");
-        }
-        
-        try {
-            responses[1] = parseCurrentDirectionData(gribFile);
-        } catch (Exception e) {
-            logger.warning("Error parsing current direction, using placeholder: " + e.getMessage());
             responses[1] = createPlaceholderResponse("CURRENT_DIRECTION");
+            return responses;
         }
-        
-        return responses;
     }
 
     // Precipitation data - modify content parameter
@@ -98,10 +118,10 @@ public class GribService {
         }
     }
 
-    // General weather data - fix URL and content parameter
+    // Weather endpoint - fix URL to ensure it's accessing the correct endpoint
     public GribResponse[] getWeatherData(String area) throws Exception {
-        // Use the proper content value for the weather endpoint
-        String url = "https://api.met.no/weatherapi/gribfiles/1.1/?area=" + area + "&content=weather";
+        // Use the weather endpoint directly without content parameter
+        String url = "https://api.met.no/weatherapi/gribfiles/1.1/weather?area=" + area;
         logger.info("Downloading weather data from: " + url);
         
         try {
