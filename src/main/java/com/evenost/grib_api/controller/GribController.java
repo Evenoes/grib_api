@@ -17,30 +17,35 @@ import com.evenost.grib_api.service.GribService;
 public class GribController {
 
     private final GribService gribService;
-    
+
     @Autowired
     public GribController(GribService gribService) {
         this.gribService = gribService;
     }
-    
+
     @GetMapping("/waves/{area}")
     public GribResponse getWaveData(@PathVariable String area) throws Exception {
         return gribService.getWaveData(area);
     }
-    
+
     @GetMapping("/wind/{area}")
     public GribResponse[] getWindData(@PathVariable String area) throws Exception {
         return gribService.getWindData(area);
     }
-    
+
     @GetMapping("/current/{area}")
     public GribResponse[] getCurrentData(@PathVariable String area) throws Exception {
         return gribService.getCurrentData(area);
     }
-    
+
     @GetMapping("/precipitation/{area}")
     public GribResponse getPrecipitationData(@PathVariable String area) throws Exception {
         return gribService.getPrecipitationData(area);
+    }
+
+    @GetMapping("/weather/{area}")
+    public GribResponse[] getWeatherData(@PathVariable String area) throws Exception {
+        return gribService.getWeatherData(area);
     }
 
     @GetMapping("/health")
@@ -48,5 +53,5 @@ public class GribController {
         Map<String, String> status = new HashMap<>();
         status.put("status", "UP");
         return status;
-}
+    }
 }

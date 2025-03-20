@@ -89,7 +89,7 @@ public class GribService {
         String url = "https://api.met.no/weatherapi/gribfiles/1.1/weather?area=" + area;
         logger.info("Downloading weather data from: " + url);
         File gribFile = downloadGribFile(url, "weather_" + area + ".grb");
-        
+
         // For weather, we return wind and precipitation data
         GribResponse[] responses = new GribResponse[3];
         responses[0] = parseWindSpeedData(gribFile);
@@ -768,9 +768,11 @@ public class GribService {
             logger.info("NetCDF file opened successfully, looking for variables");
 
             // Log all variables
-            ncFile.getVariables().forEach(v -> logger.info("Found variable: " + v.getFullName() +
+            logger.info("======= ALL VARIABLES IN CURRENT FILE =======");
+            ncFile.getVariables().forEach(v -> logger.info("Variable: " + v.getFullName() +
                     " with type: " + v.getDataType() +
                     " and shape: " + v.getShape()));
+            logger.info("============================================");
 
             // Common variable names for current speed
             String[] possibleVarNames = {
@@ -780,7 +782,12 @@ public class GribService {
                     "sea_surface_current_speed",
                     "surface_current_speed",
                     "current_speed_surface",
-                    "speed_of_current"
+                    "speed_of_current",
+                    // Add these additional possibilities
+                    "ssu", // Surface sea water x velocity
+                    "ssv", // Surface sea water y velocity
+                    "water_u",
+                    "water_v"
             };
 
             ucar.nc2.Variable currentVar = null;
@@ -796,7 +803,24 @@ public class GribService {
             // If we can't find a direct current speed variable, look for U/V components
             if (currentVar == null) {
                 ucar.nc2.Variable uCurrent = ncFile.findVariable("uogrd");
+                if (uCurrent == null)
+                    uCurrent = ncFile.findVariable("ssu");
+                if (uCurrent == null)
+                    uCurrent = ncFile.findVariable("water_u");
+                if (uCurrent == null)
+                    uCurrent = ncFile.findVariable("u");
+                if (uCurrent == null)
+                    uCurrent = ncFile.findVariable("uo");
+
                 ucar.nc2.Variable vCurrent = ncFile.findVariable("vogrd");
+                if (vCurrent == null)
+                    vCurrent = ncFile.findVariable("ssv");
+                if (vCurrent == null)
+                    vCurrent = ncFile.findVariable("water_v");
+                if (vCurrent == null)
+                    vCurrent = ncFile.findVariable("v");
+                if (vCurrent == null)
+                    vCurrent = ncFile.findVariable("vo");
 
                 if (uCurrent != null && vCurrent != null) {
                     logger.info("Found U/V current components, will calculate speed");
@@ -1051,7 +1075,24 @@ public class GribService {
             // If we can't find a direct current direction variable, look for U/V components
             if (dirVar == null) {
                 ucar.nc2.Variable uCurrent = ncFile.findVariable("uogrd");
+                if (uCurrent == null)
+                    uCurrent = ncFile.findVariable("ssu");
+                if (uCurrent == null)
+                    uCurrent = ncFile.findVariable("water_u");
+                if (uCurrent == null)
+                    uCurrent = ncFile.findVariable("u");
+                if (uCurrent == null)
+                    uCurrent = ncFile.findVariable("uo");
+
                 ucar.nc2.Variable vCurrent = ncFile.findVariable("vogrd");
+                if (vCurrent == null)
+                    vCurrent = ncFile.findVariable("ssv");
+                if (vCurrent == null)
+                    vCurrent = ncFile.findVariable("water_v");
+                if (vCurrent == null)
+                    vCurrent = ncFile.findVariable("v");
+                if (vCurrent == null)
+                    vCurrent = ncFile.findVariable("vo");
 
                 if (uCurrent != null && vCurrent != null) {
                     logger.info("Found U/V current components, will calculate direction");
